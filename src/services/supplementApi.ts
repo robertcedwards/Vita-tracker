@@ -2,7 +2,7 @@ import { ApiSupplementResponse, NutritionalInfo } from '../types';
 
 const OPENFOODFACTS_API = 'https://world.openfoodfacts.org/api/v0/product/';
 
-export async function fetchSupplementInfo(barcode: string): Promise<NutritionalInfo | null> {
+export async function fetchSupplementInfo(barcode: string): Promise<NutritionalInfo & { product_name?: string } | null> {
   try {
     const response = await fetch(`${OPENFOODFACTS_API}${barcode}.json`);
     const data: ApiSupplementResponse = await response.json();
@@ -11,7 +11,8 @@ export async function fetchSupplementInfo(barcode: string): Promise<NutritionalI
       throw new Error('Product not found');
     }
 
-    const nutritionalInfo: NutritionalInfo = {
+    return {
+      product_name: data.product.product_name,
       servingSize: data.product.serving_size || 'Not specified',
       ingredients: data.product.ingredients_text ? 
         data.product.ingredients_text.split(',').map(i => i.trim()) : 
@@ -20,25 +21,29 @@ export async function fetchSupplementInfo(barcode: string): Promise<NutritionalI
         data.product.allergens.split(',').map(a => a.trim()) : 
         [],
       warnings: data.product.warnings || [],
-      nutritionalValues: {}
+      nutritionalValues: processNutriments(data.product.nutriments)
     };
-
-    if (data.product.nutriments) {
-      Object.entries(data.product.nutriments).forEach(([key, value]) => {
-        if (typeof value === 'number') {
-          nutritionalInfo.nutritionalValues![key] = {
-            amount: value,
-            unit: determineUnit(key),
-          };
-        }
-      });
-    }
-
-    return nutritionalInfo;
   } catch (error) {
     console.error('Error fetching supplement info:', error);
     return null;
   }
+}
+
+function processNutriments(nutriments?: Record<string, number>) {
+  if (!nutriments) return {};
+  
+  const processed: Record<string, { amount: number; unit: string }> = {};
+  
+  Object.entries(nutriments).forEach(([key, value]) => {
+    if (typeof value === 'number') {
+      processed[key] = {
+        amount: value,
+        unit: determineUnit(key),
+      };
+    }
+  });
+  
+  return processed;
 }
 
 function determineUnit(nutrientKey: string): string {

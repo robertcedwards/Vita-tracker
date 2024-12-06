@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Camera, X, Scan as ScanIcon, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ScanResult } from '../types';
+import { ScanResult, Supplement } from '../types';
 import { fetchSupplementInfo } from '../services/supplementApi';
+import { supplementStorage } from '../utils/supplementStorage';
+import Quagga from 'quagga';
 
 interface ScannerProps {
   onScanComplete: (result: ScanResult) => void;
@@ -14,19 +16,117 @@ export function Scanner({ onScanComplete }: ScannerProps) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const quaggaInitialized = useRef(false);
 
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+  const initializeScanner = () => {
+    if (!videoRef.current) return;
+
+    Quagga.init({
+      inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: videoRef.current,
+        constraints: {
+          facingMode: "environment",
+          aspectRatio: { min: 1, max: 2 },
+          width: { min: 640 },
+          height: { min: 480 }
+        },
+      },
+      locate: true,
+      numOfWorkers: 4,
+      decoder: {
+        readers: ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"],
+        debug: {
+          drawBoundingBox: true,
+          showFrequency: true,
+          drawScanline: true
+        }
       }
-    };
-  }, []);
+    }, function(err) {
+      if (err) {
+        console.error(err);
+        toast.error('Failed to initialize scanner');
+        return;
+      }
+      console.log("QuaggaJS initialization succeeded");
+      quaggaInitialized.current = true;
+      Quagga.start();
+    });
+
+    let lastResult: string | null = null;
+    let sameResultCount = 0;
+
+    Quagga.onDetected((result) => {
+      const code = result.codeResult.code;
+      console.log('Detected barcode:', code);
+      
+      if (code === lastResult) {
+        sameResultCount++;
+        if (sameResultCount >= 2) {
+          handleValidBarcode(result);
+          sameResultCount = 0;
+          lastResult = null;
+        }
+      } else {
+        lastResult = code;
+        sameResultCount = 1;
+      }
+    });
+  };
+
+  const handleValidBarcode = async (result: any) => {
+    const barcode = result.codeResult.code;
+    if (!barcode) return;
+
+    // Stop scanning
+    stopScanning();
+    setLoading(true);
+
+    try {
+      const nutritionalInfo = await fetchSupplementInfo(barcode);
+      
+      if (nutritionalInfo) {
+        const newSupplement: Omit<Supplement, 'id'> = {
+          name: nutritionalInfo.product_name || 'Unknown Supplement',
+          barcode,
+          dosage: nutritionalInfo.servingSize || 'Not specified',
+          frequency: 'Daily',
+          timeOfDay: 'Morning',
+          intakeHistory: [],
+          nutritionalInfo,
+          verified: true,
+          apiData: {
+            source: 'OpenFoodFacts',
+            productId: barcode,
+            lastUpdated: new Date().toISOString(),
+            status: 'verified'
+          }
+        };
+
+        await supplementStorage.add(newSupplement);
+        toast.success('Supplement added successfully!');
+        
+        onScanComplete({
+          barcode,
+          format: result.codeResult.format,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        toast.error('No supplement information found');
+      }
+    } catch (error) {
+      console.error('Error processing barcode:', error);
+      toast.error('Error processing barcode');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const startScanning = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { facingMode: "environment" }
       });
       
       streamRef.current = stream;
@@ -36,34 +136,7 @@ export function Scanner({ onScanComplete }: ScannerProps) {
       
       setScanning(true);
       setHasPermission(true);
-      toast.success('Camera activated');
-
-      // Here we would initialize Quagga or another barcode scanning library
-      // For demonstration, we'll simulate a scan after 3 seconds
-      setTimeout(async () => {
-        const mockBarcode = '123456789';
-        setLoading(true);
-        
-        try {
-          const nutritionalInfo = await fetchSupplementInfo(mockBarcode);
-          if (nutritionalInfo) {
-            toast.success('Supplement information found!');
-          } else {
-            toast.error('No supplement information found');
-          }
-        } catch (error) {
-          toast.error('Error fetching supplement information');
-        } finally {
-          setLoading(false);
-          onScanComplete({
-            barcode: mockBarcode,
-            format: 'EAN-13',
-            timestamp: new Date().toISOString()
-          });
-          stopScanning();
-        }
-      }, 3000);
-
+      await initializeScanner();
     } catch (error) {
       console.error(error);
       setHasPermission(false);
@@ -74,9 +147,22 @@ export function Scanner({ onScanComplete }: ScannerProps) {
   const stopScanning = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
+
+    if (quaggaInitialized.current) {
+      Quagga.stop();
+      quaggaInitialized.current = false;
+    }
+    
     setScanning(false);
   };
+
+  useEffect(() => {
+    return () => {
+      stopScanning();
+    };
+  }, []);
 
   return (
     <div className="h-full">
@@ -90,9 +176,10 @@ export function Scanner({ onScanComplete }: ScannerProps) {
           <>
             <video
               ref={videoRef}
-              className="w-full h-full object-cover"
+              className="absolute top-0 left-0 w-full h-full object-cover"
               autoPlay
               playsInline
+              muted
             />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-48 h-48 border-2 border-white rounded-lg opacity-50" />

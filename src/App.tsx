@@ -24,10 +24,9 @@ function App() {
     setSupplements(supplementStorage.getAll())
   }
 
-  const handleScanComplete = (result: ScanResult) => {
-    // Handle scan result
-    console.log('Scan complete:', result)
-  }
+  const handleScanComplete = async (result: ScanResult) => {
+    setSupplements(supplementStorage.getAll());
+  };
 
   return (
     <Router>
