@@ -10,3 +10,6 @@ RAPIDAPI_KEY = "302c3d03f9mshf355460a0cd289bp17ff53jsn703dc0d16788"
 
 [ssl]
 verify = true
+
+[observability.logs]
+enabled = true

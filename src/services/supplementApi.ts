@@ -1,9 +1,7 @@
 import { ApiSupplementResponse, NutritionalInfo } from '../types';
 
 // Use local development URL when in development mode
-const WORKER_URL = import.meta.env.DEV 
-  ? 'http://127.0.0.1:8787'
-  : 'https://barcode-proxy.robert-pastorella.workers.dev';
+const WORKER_URL = 'https://barcode-proxy.robert-pastorella.workers.dev';
 
 
 export async function fetchSupplementInfo(barcode: string): Promise<NutritionalInfo & { product_name?: string } | null> {
