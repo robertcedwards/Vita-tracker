@@ -96,7 +96,6 @@ export function Scanner({ onScanComplete }: ScannerProps) {
         const newSupplement: Omit<Supplement, 'id'> = {
           name: nutritionalInfo.product_name || 'Unknown Supplement',
           barcode,
-          image: nutritionalInfo.image,
           dosage: nutritionalInfo.servingSize || 'Not specified',
           frequency: 'Daily',
           timeOfDay: 'Morning',
