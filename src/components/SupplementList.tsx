@@ -1,4 +1,4 @@
-import { Pill, Clock, Plus } from 'lucide-react';
+import { Pill, Clock, Plus, CheckCircle } from 'lucide-react';
 import { Supplement } from '../types';
 import { format, isToday } from 'date-fns';
 
@@ -31,9 +31,28 @@ export function SupplementList({ supplements, onTakeSupplement, onAddClick }: Su
               <div className="flex items-start space-x-3">
                 <Pill className="w-5 h-5 text-blue-500 mt-1" />
                 <div>
-                  <h3 className="font-medium text-gray-900">{supplement.name}</h3>
+                  <h3 className="font-medium text-gray-900">
+                    {supplement.name}
+                    {supplement.brand && (
+                      <span className="text-sm text-gray-500 ml-2">by {supplement.brand}</span>
+                    )}
+                  </h3>
                   <p className="text-sm text-gray-500">{supplement.dosage}</p>
                   <p className="text-sm text-gray-500">{supplement.frequency}</p>
+                  {supplement.category && (
+                    <p className="text-xs text-gray-400 mt-1">{supplement.category}</p>
+                  )}
+                  {supplement.nutritionalInfo?.ingredients.length > 0 && (
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                      Contains: {supplement.nutritionalInfo.ingredients.join(', ')}
+                    </p>
+                  )}
+                  {supplement.verified && (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-600 mt-1">
+                      <CheckCircle className="w-3 h-3" />
+                      Verified
+                    </span>
+                  )}
                 </div>
               </div>
               <button
