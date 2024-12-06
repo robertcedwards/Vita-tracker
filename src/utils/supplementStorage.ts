@@ -1,4 +1,4 @@
-import { Supplement, IntakeRecord, NutritionalInfo } from '../types';
+import { Supplement, IntakeRecord } from '../types';
 import { fetchSupplementInfo } from '../services/supplementApi';
 
 const STORAGE_KEY = 'supplements';
@@ -34,7 +34,7 @@ export const supplementStorage = {
       intakeHistory: [],
       nutritionalInfo,
       apiData: supplement.barcode ? {
-        source: 'OpenFoodFacts',
+        source: 'OpenFoodFacts' as const,
         productId: supplement.barcode,
         lastUpdated: new Date().toISOString(),
         status: nutritionalInfo ? 'verified' : 'unverified'
@@ -61,7 +61,7 @@ export const supplementStorage = {
       if (apiData) {
         updates.nutritionalInfo = apiData;
         updates.apiData = {
-          source: 'OpenFoodFacts',
+          source: 'OpenFoodFacts' as const,
           productId: updates.barcode,
           lastUpdated: new Date().toISOString(),
           status: 'verified'
@@ -134,7 +134,7 @@ export const supplementStorage = {
     const supplements = supplementStorage.getAll();
     const supplement = supplements.find(s => s.id === id);
     
-    if (!supplement?.barcode) return false;
+    if (!supplement?.barcode || !supplement.apiData) return false;
 
     const apiData = await fetchSupplementInfo(supplement.barcode);
     if (!apiData) return false;
@@ -142,7 +142,8 @@ export const supplementStorage = {
     return Boolean(supplementStorage.update(id, {
       nutritionalInfo: apiData,
       apiData: {
-        ...supplement.apiData,
+        source: supplement.apiData.source,
+        productId: supplement.apiData.productId,
         lastUpdated: new Date().toISOString(),
         status: 'verified'
       }
@@ -167,16 +168,20 @@ export const supplementStorage = {
 };
 
 function calculateStreak(supplements: Supplement[]): number {
-  // Implementation needed
-  return 0;
+  // Basic implementation
+  return supplements.filter(s => s.lastTaken).length;
 }
 
 function calculateCompliance(supplements: Supplement[]): number {
-  // Implementation needed
-  return 0;
+  if (supplements.length === 0) return 0;
+  const takenCount = supplements.filter(s => s.lastTaken).length;
+  return Math.round((takenCount / supplements.length) * 100);
 }
 
 function findMostConsistent(supplements: Supplement[]): string[] {
-  // Implementation needed
-  return [];
+  return supplements
+    .filter(s => s.intakeHistory.length > 0)
+    .sort((a, b) => b.intakeHistory.length - a.intakeHistory.length)
+    .slice(0, 3)
+    .map(s => s.name);
 }

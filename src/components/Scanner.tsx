@@ -49,7 +49,7 @@ export function Scanner({ onScanComplete }: ScannerProps) {
           if (nutritionalInfo) {
             toast.success('Supplement information found!');
           } else {
-            toast.warning('No supplement information found');
+            toast.error('No supplement information found');
           }
         } catch (error) {
           toast.error('Error fetching supplement information');

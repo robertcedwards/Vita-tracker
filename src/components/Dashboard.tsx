@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { BarChart, Activity, TrendingUp, Calendar, Pill } from 'lucide-react'
+import { Activity, TrendingUp, Calendar, Pill } from 'lucide-react'
 import { DashboardStats } from '../types'
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { supplementStorage } from '../utils/supplementStorage'
 
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -9,18 +10,13 @@ export function Dashboard() {
     takenToday: 0,
     streak: 0,
     compliance: 0,
+    mostConsistent: [],
+    needsRefill: []
   })
 
   useEffect(() => {
-    const supplements = JSON.parse(localStorage.getItem('supplements') || '[]')
-    const today = new Date().toISOString().split('T')[0]
-    
-    setStats({
-      totalSupplements: supplements.length,
-      takenToday: supplements.filter(s => s.lastTaken?.startsWith(today)).length,
-      streak: calculateStreak(supplements),
-      compliance: calculateCompliance(supplements),
-    })
+    const currentStats = supplementStorage.calculateStats()
+    setStats(currentStats)
   }, [])
 
   const mockChartData = [
@@ -88,14 +84,4 @@ export function Dashboard() {
       </div>
     </div>
   )
-}
-
-function calculateStreak(supplements) {
-  // Simplified streak calculation
-  return 3
-}
-
-function calculateCompliance(supplements) {
-  // Simplified compliance calculation
-  return 85
 }

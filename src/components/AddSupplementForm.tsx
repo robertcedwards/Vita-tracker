@@ -18,7 +18,12 @@ export function AddSupplementForm({ onAdd, onClose }: AddSupplementFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAdd(formData);
+    onAdd({
+      ...formData,
+      intakeHistory: [],
+      verified: false,
+      tags: []
+    });
     onClose();
   };
 
