@@ -56,6 +56,15 @@ export function SupplementDetail({ supplement, onLogIntake }: SupplementDetailPr
           </button>
           <h1 className="text-xl font-semibold">{supplement.name}</h1>
         </div>
+        {supplement.image && (
+          <div className="mt-4 flex justify-center">
+            <img 
+              src={supplement.image} 
+              alt={supplement.name}
+              className="w-32 h-32 object-contain rounded-lg shadow-sm"
+            />
+          </div>
+        )}
       </header>
 
       <div className="p-4 space-y-6">

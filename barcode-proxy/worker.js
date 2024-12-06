@@ -142,6 +142,7 @@ export default {
 					brand: rapidApiData.product?.brand || '',
 					description: rapidApiData.product?.description || '',
 					category: rapidApiData.product?.category || '',
+					image: rapidApiData.product?.image || '',
 					nutrition: {
 						serving_size: rapidApiData.product?.description?.match(/Serving Size[:\s]+([^.]+)/i)?.[1] || 'See product description',
 					},

@@ -9,12 +9,12 @@ export interface Supplement {
   barcode?: string;
   brand?: string;
   category?: string;
+  image?: string;
   intakeHistory: IntakeRecord[];
   reminder?: Reminder;
   nutritionalInfo?: NutritionalInfo;
   effectiveness?: EffectivenessRating[];
   tags?: string[];
-  image?: string;
   verified?: boolean;
   apiData?: ExternalSupplementData;
 }
