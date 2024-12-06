@@ -10,6 +10,13 @@ interface ScannerProps {
   onScanComplete: (result: ScanResult) => void;
 }
 
+interface QuaggaValidResult {
+  codeResult: {
+    code: string;
+    format: string;
+  };
+}
+
 export function Scanner({ onScanComplete }: ScannerProps) {
   const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,29 +26,25 @@ export function Scanner({ onScanComplete }: ScannerProps) {
   const quaggaInitialized = useRef(false);
 
   const initializeScanner = () => {
-    if (!videoRef.current) return;
+    const interactive = document.querySelector("#interactive") as HTMLElement;
+    if (!interactive) return;
 
     Quagga.init({
       inputStream: {
         name: "Live",
         type: "LiveStream",
-        target: videoRef.current,
+        target: interactive,
         constraints: {
           facingMode: "environment",
-          aspectRatio: { min: 1, max: 2 },
-          width: { min: 640 },
-          height: { min: 480 }
+          width: { min: 640, ideal: 1280 },
+          height: { min: 480, ideal: 720 }
         },
       },
       locate: true,
-      numOfWorkers: 4,
+      numOfWorkers: 2,
       decoder: {
         readers: ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"],
-        debug: {
-          drawBoundingBox: true,
-          showFrequency: true,
-          drawScanline: true
-        }
+        debug: true
       }
     }, function(err) {
       if (err) {
@@ -53,29 +56,9 @@ export function Scanner({ onScanComplete }: ScannerProps) {
       quaggaInitialized.current = true;
       Quagga.start();
     });
-
-    let lastResult: string | null = null;
-    let sameResultCount = 0;
-
-    Quagga.onDetected((result) => {
-      const code = result.codeResult.code;
-      console.log('Detected barcode:', code);
-      
-      if (code === lastResult) {
-        sameResultCount++;
-        if (sameResultCount >= 2) {
-          handleValidBarcode(result);
-          sameResultCount = 0;
-          lastResult = null;
-        }
-      } else {
-        lastResult = code;
-        sameResultCount = 1;
-      }
-    });
   };
 
-  const handleValidBarcode = async (result: any) => {
+  const handleValidBarcode = async (result: QuaggaValidResult) => {
     const barcode = result.codeResult.code;
     if (!barcode) return;
 
@@ -97,7 +80,7 @@ export function Scanner({ onScanComplete }: ScannerProps) {
           nutritionalInfo,
           verified: true,
           apiData: {
-            source: 'OpenFoodFacts',
+            source: 'OpenFoodFacts' as const,
             productId: barcode,
             lastUpdated: new Date().toISOString(),
             status: 'verified'
@@ -126,17 +109,26 @@ export function Scanner({ onScanComplete }: ScannerProps) {
   const startScanning = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       });
       
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      if (!videoRef.current) return;
       
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      
+      streamRef.current = stream;
       setScanning(true);
       setHasPermission(true);
-      await initializeScanner();
+      
+      // Initialize scanner after video is ready
+      videoRef.current.onloadedmetadata = () => {
+        initializeScanner();
+      };
     } catch (error) {
       console.error(error);
       setHasPermission(false);
@@ -154,9 +146,45 @@ export function Scanner({ onScanComplete }: ScannerProps) {
       Quagga.stop();
       quaggaInitialized.current = false;
     }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     
     setScanning(false);
   };
+
+  useEffect(() => {
+    let lastResult: string | null = null;
+    let sameResultCount = 0;
+
+    const handleDetected = (result: QuaggaValidResult) => {
+      const code = result.codeResult.code;
+      console.log('Detected barcode:', code);
+      
+      if (code === lastResult) {
+        sameResultCount++;
+        if (sameResultCount >= 2) {
+          handleValidBarcode(result);
+          sameResultCount = 0;
+          lastResult = null;
+        }
+      } else {
+        lastResult = code;
+        sameResultCount = 1;
+      }
+    };
+
+    if (scanning) {
+      Quagga.onDetected(handleDetected);
+    }
+
+    return () => {
+      if (scanning) {
+        Quagga.onDetected(() => {});
+      }
+    };
+  }, [scanning]);
 
   useEffect(() => {
     return () => {
@@ -171,12 +199,12 @@ export function Scanner({ onScanComplete }: ScannerProps) {
         <p className="text-gray-600 mt-2">Scan barcode to add or log supplement</p>
       </header>
 
-      <div className="relative aspect-square max-w-sm mx-auto bg-black rounded-lg overflow-hidden">
+      <div id="interactive" className="relative aspect-square max-w-sm mx-auto bg-black rounded-lg overflow-hidden">
         {scanning ? (
           <>
             <video
               ref={videoRef}
-              className="absolute top-0 left-0 w-full h-full object-cover"
+              className="w-full h-full object-cover"
               autoPlay
               playsInline
               muted

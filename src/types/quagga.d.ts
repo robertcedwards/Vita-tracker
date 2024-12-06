@@ -6,16 +6,15 @@ declare module 'quagga' {
       target?: HTMLElement | null;
       constraints?: {
         facingMode?: string;
-        width?: { min: number };
-        height?: { min: number };
-        aspectRatio?: { min: number; max: number };
+        width?: { min: number; ideal?: number };
+        height?: { min: number; ideal?: number };
       };
     };
     locate?: boolean;
     numOfWorkers?: number;
     decoder: {
       readers: string[];
-      debug?: {
+      debug?: boolean | {
         drawBoundingBox?: boolean;
         showFrequency?: boolean;
         drawScanline?: boolean;
