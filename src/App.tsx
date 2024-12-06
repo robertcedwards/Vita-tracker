@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import './index.css'
 import { Toaster } from 'react-hot-toast'
 import { Navigation } from './components/Navigation'
@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { Supplement, ScanResult } from './types'
 import { supplementStorage } from './utils/supplementStorage'
 
-function App() {
+function AppContent() {
   const [supplements, setSupplements] = useState<Supplement[]>(supplementStorage.getAll())
   const navigate = useNavigate()
 
@@ -20,7 +20,8 @@ function App() {
     setSupplements(supplementStorage.getAll())
   }
 
-  const handleScanComplete = async (result: ScanResult) => {
+  const handleScanComplete = async ({ barcode }: ScanResult) => {
+    console.log('Scanned barcode:', barcode)
     setSupplements(supplementStorage.getAll())
     navigate('/supplements')
   }
@@ -51,6 +52,15 @@ function App() {
       <Navigation />
       <Toaster position="bottom-center" />
     </div>
+  )
+}
+
+// Main App component with Router
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   )
 }
 

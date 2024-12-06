@@ -1,27 +1,49 @@
 import { ApiSupplementResponse, NutritionalInfo } from '../types';
 
-const OPENFOODFACTS_API = 'https://world.openfoodfacts.org/api/v0/product/';
+// Use local development URL when in development mode
+const WORKER_URL = import.meta.env.DEV 
+  ? 'http://127.0.0.1:8787'
+  : 'https://barcode-proxy.robert-pastorella.workers.dev';
+
 
 export async function fetchSupplementInfo(barcode: string): Promise<NutritionalInfo & { product_name?: string } | null> {
   try {
-    const response = await fetch(`${OPENFOODFACTS_API}${barcode}.json`);
-    const data: ApiSupplementResponse = await response.json();
+    const response = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      mode: 'cors',
+      body: JSON.stringify({ barcode })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`API request failed: ${response.status}`);
+    }
 
-    if (!data.product) {
+    const data = await response.json();
+    console.log('API Response:', data);
+
+    if (!data.products?.[0]) {
       throw new Error('Product not found');
     }
 
+    const product = data.products[0];
+    
     return {
-      product_name: data.product.product_name,
-      servingSize: data.product.serving_size || 'Not specified',
-      ingredients: data.product.ingredients_text ? 
-        data.product.ingredients_text.split(',').map(i => i.trim()) : 
+      product_name: product.title || product.brand,
+      servingSize: product.nutrition?.serving_size || 'Not specified',
+      ingredients: product.ingredients ? 
+        product.ingredients.split(',').map((i: string) => i.trim()) : 
         [],
-      allergens: data.product.allergens ? 
-        data.product.allergens.split(',').map(a => a.trim()) : 
+      allergens: product.allergens ? 
+        product.allergens.split(',').map((a: string) => a.trim()) : 
         [],
-      warnings: data.product.warnings || [],
-      nutritionalValues: processNutriments(data.product.nutriments)
+      warnings: product.warnings || [],
+      nutritionalValues: processNutriments(product.nutrition)
     };
   } catch (error) {
     console.error('Error fetching supplement info:', error);
@@ -29,27 +51,25 @@ export async function fetchSupplementInfo(barcode: string): Promise<NutritionalI
   }
 }
 
-function processNutriments(nutriments?: Record<string, number>) {
-  if (!nutriments) return {};
+function processNutriments(nutrition?: any): Record<string, { amount: number; unit: string }> {
+  if (!nutrition) return {};
   
   const processed: Record<string, { amount: number; unit: string }> = {};
   
-  Object.entries(nutriments).forEach(([key, value]) => {
-    if (typeof value === 'number') {
-      processed[key] = {
-        amount: value,
-        unit: determineUnit(key),
-      };
+  // Map nutrition facts from the API response
+  Object.entries(nutrition).forEach(([key, value]) => {
+    if (typeof value === 'string' && !['serving_size', 'ingredients'].includes(key)) {
+      const match = value.match(/^([\d.]+)\s*(\w+)$/);
+      if (match) {
+        processed[key] = {
+          amount: parseFloat(match[1]),
+          unit: match[2]
+        };
+      }
     }
   });
   
   return processed;
-}
-
-function determineUnit(nutrientKey: string): string {
-  if (nutrientKey.includes('_100g')) return 'g/100g';
-  if (nutrientKey.includes('_serving')) return 'per serving';
-  return 'g';
 }
 
 export async function contributeSupplementInfo(supplementData: Partial<NutritionalInfo>) {

@@ -25,37 +25,60 @@ export function Scanner({ onScanComplete }: ScannerProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const quaggaInitialized = useRef(false);
 
-  const initializeScanner = () => {
-    const interactive = document.querySelector("#interactive") as HTMLElement;
-    if (!interactive) return;
+  const initializeScanner = async () => {
+    console.log('Initializing scanner...');
+    if (!videoRef.current) {
+      console.error('Video element not found');
+      return;
+    }
 
-    Quagga.init({
-      inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        target: interactive,
-        constraints: {
-          facingMode: "environment",
-          width: { min: 640, ideal: 1280 },
-          height: { min: 480, ideal: 720 }
-        },
-      },
-      locate: true,
-      numOfWorkers: 2,
-      decoder: {
-        readers: ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"],
-        debug: true
-      }
-    }, function(err) {
-      if (err) {
-        console.error(err);
-        toast.error('Failed to initialize scanner');
-        return;
-      }
+    console.log('Configuring Quagga...');
+    try {
+      await new Promise((resolve, reject) => {
+        Quagga.init({
+          inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target: videoRef.current!,
+            constraints: {
+              facingMode: "environment",
+              width: { min: 640, ideal: 1280 },
+              height: { min: 480, ideal: 720 }
+            },
+          },
+          locate: true,
+          numOfWorkers: 2,
+          decoder: {
+            readers: ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"],
+            debug: {
+              drawBoundingBox: true,
+              showFrequency: true,
+              drawScanline: true,
+              showPattern: true
+            }
+          }
+        }, function(err) {
+          if (err) {
+            console.error('Quagga initialization error:', err);
+            reject(err);
+            return;
+          }
+          resolve(true);
+        });
+      });
+
       console.log("QuaggaJS initialization succeeded");
       quaggaInitialized.current = true;
       Quagga.start();
-    });
+
+      // Add frequency debugging
+      Quagga.onProcessed((result) => {
+        console.log('Frame processed:', result);
+      });
+    } catch (error) {
+      console.error('Failed to initialize Quagga:', error);
+      toast.error('Failed to initialize scanner');
+    }
   };
 
   const handleValidBarcode = async (result: QuaggaValidResult) => {
@@ -107,7 +130,13 @@ export function Scanner({ onScanComplete }: ScannerProps) {
   };
 
   const startScanning = async () => {
+    console.log('Starting scanner...');
     try {
+      setScanning(true);
+      
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      console.log('Requesting camera access...');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: "environment",
@@ -116,22 +145,25 @@ export function Scanner({ onScanComplete }: ScannerProps) {
         }
       });
       
-      if (!videoRef.current) return;
+      if (!videoRef.current) {
+        console.error('Video element not found');
+        throw new Error('Video element not found');
+      }
       
+      console.log('Camera access granted, setting up video stream');
       videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-      
       streamRef.current = stream;
-      setScanning(true);
       setHasPermission(true);
       
-      // Initialize scanner after video is ready
-      videoRef.current.onloadedmetadata = () => {
+      // Wait for video to be ready before initializing Quagga
+      videoRef.current.onloadeddata = () => {
+        console.log('Video data loaded, initializing scanner...');
         initializeScanner();
       };
     } catch (error) {
-      console.error(error);
+      console.error('Camera access error:', error);
       setHasPermission(false);
+      setScanning(false);
       toast.error('Unable to access camera');
     }
   };

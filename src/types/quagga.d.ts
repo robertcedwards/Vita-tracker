@@ -18,6 +18,7 @@ declare module 'quagga' {
         drawBoundingBox?: boolean;
         showFrequency?: boolean;
         drawScanline?: boolean;
+        showPattern?: boolean;
       };
     };
   }
@@ -35,4 +36,5 @@ declare module 'quagga' {
   export function start(): void;
   export function stop(): void;
   export function onDetected(callback: (result: QuaggaResult) => void): void;
+  export function onProcessed(callback: (result: any) => void): void;
 } 
