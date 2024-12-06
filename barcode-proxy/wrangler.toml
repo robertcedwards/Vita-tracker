@@ -1,0 +1,12 @@
+name = "barcode-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+BARCODE_API_KEY = "j5zas5r8c7qqkon8jx5e4afovwljdk"
+RAPIDAPI_KEY = "302c3d03f9mshf355460a0cd289bp17ff53jsn703dc0d16788"
+
+
+[ssl]
+verify = true
