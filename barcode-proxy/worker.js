@@ -103,6 +103,33 @@ export default {
   
 			if (!rapidApiResponse.ok) {
 				const errorText = await rapidApiResponse.text();
+				const rapidApiData = JSON.parse(errorText);
+				
+				// If RapidAPI returns a valid response with no product, return empty product
+				if (rapidApiData.code && !rapidApiData.product) {
+					const emptyProduct = {
+						products: [{
+							title: 'Unknown Product',
+							brand: '',
+							description: '',
+							category: '',
+							nutrition: {
+								serving_size: 'Not specified',
+							},
+							ingredients: '',
+							allergens: '',
+							warnings: []
+						}]
+					};
+					
+					return new Response(JSON.stringify(emptyProduct), {
+						headers: {
+							'Content-Type': 'application/json',
+							'Access-Control-Allow-Origin': '*'
+						}
+					});
+				}
+				
 				throw new Error(`Both APIs failed. Primary: ${primaryError}, RapidAPI: ${rapidApiResponse.status} - ${errorText}`);
 			}
   
