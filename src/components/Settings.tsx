@@ -1,4 +1,4 @@
-import { Bell, Cloud, Download, Moon, Sun } from 'lucide-react'
+import { Bell, Cloud, Download, Sun } from 'lucide-react'
 
 export function Settings() {
   return (

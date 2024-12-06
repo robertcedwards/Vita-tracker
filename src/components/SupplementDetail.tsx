@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ArrowLeft, Calendar, Clock, ThumbsUp, AlertCircle, Pill, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Clock, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Supplement, IntakeRecord } from '../types';
-import { format, isToday } from 'date-fns';
+import { format } from 'date-fns';
 import { supplementStorage } from '../utils/supplementStorage';
 import toast from 'react-hot-toast';
 
